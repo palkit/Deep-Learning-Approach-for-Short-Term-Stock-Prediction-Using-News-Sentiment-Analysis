@@ -136,9 +136,8 @@ def compute_daily_sentiment(news_df: pd.DataFrame) -> pd.DataFrame:
 
 
 
-# ─────────────────────────────────────────────
-# 5.  FEATURE INTEGRATION
-# ─────────────────────────────────────────────
+#  FEATURE INTEGRATION
+
 def build_feature_matrix(stock_df: pd.DataFrame,
                          sentiment_df: pd.DataFrame) -> pd.DataFrame:
     """Merge OHLCV + indicators + sentiment into a unified DataFrame."""
