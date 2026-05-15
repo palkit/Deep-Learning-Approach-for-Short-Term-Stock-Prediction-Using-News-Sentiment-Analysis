@@ -183,6 +183,29 @@ def prepare_data(feature_df: pd.DataFrame):
     print(f"[INFO] Train: {X_train.shape}, Test: {X_test.shape}")
     return X_train, X_test, y_train, y_test, scaler, feature_df.index[SEQ_LEN + 1:]
 
+# MODEL ARCHITECTURE
+
+def build_lstm_model(input_shape: tuple,
+                     lstm_units: int = LSTM_UNITS,
+                     dropout: float = DROPOUT) -> Sequential:
+    """
+    LSTM-based binary classifier.
+    """
+    model = Sequential([
+        LSTM(lstm_units, return_sequences=True, input_shape=input_shape),
+        Dropout(dropout),
+        LSTM(lstm_units // 2, return_sequences=False),
+        Dropout(dropout),
+        Dense(32, activation="relu"),
+        Dense(1,  activation="sigmoid")
+    ])
+    model.compile(
+        optimizer=Adam(learning_rate=LEARNING_RATE),
+        loss="binary_crossentropy",
+        metrics=["accuracy"]
+    )
+    model.summary()
+    return model
 
     
     #  EVALUATION
