@@ -81,3 +81,31 @@ def load_or_generate_news(df: pd.DataFrame) -> pd.DataFrame:
         headlines.append({"Date": date, "Headline": text})
 
     return pd.DataFrame(headlines).set_index("Date")
+
+
+
+
+
+
+
+
+# SENTIMENT ANALYSIS
+
+def compute_daily_sentiment(news_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Score each headline with VADER and aggregate to a daily sentiment score.
+    """
+    analyzer = SentimentIntensityAnalyzer()
+
+    def score_to_label(compound: float) -> int:
+        if compound >= 0.05:
+            return 1
+        elif compound <= -0.05:
+            return -1
+        return 0
+
+    scores = news_df["Headline"].apply(
+        lambda h: score_to_label(analyzer.polarity_scores(str(h))["compound"])
+    )
+    daily = scores.groupby(scores.index).mean()
+    return daily.rename("Sentiment").to_frame()
