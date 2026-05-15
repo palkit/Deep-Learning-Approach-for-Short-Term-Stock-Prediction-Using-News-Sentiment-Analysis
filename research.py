@@ -132,3 +132,54 @@ def compute_daily_sentiment(news_df: pd.DataFrame) -> pd.DataFrame:
     )
     daily = scores.groupby(scores.index).mean()
     return daily.rename("Sentiment").to_frame()
+
+
+
+
+# ─────────────────────────────────────────────
+# 5.  FEATURE INTEGRATION
+# ─────────────────────────────────────────────
+def build_feature_matrix(stock_df: pd.DataFrame,
+                         sentiment_df: pd.DataFrame) -> pd.DataFrame:
+    """Merge OHLCV + indicators + sentiment into a unified DataFrame."""
+    if isinstance(stock_df.columns, pd.MultiIndex):
+        stock_df.columns = stock_df.columns.get_level_values(0)
+
+    merged = stock_df.join(sentiment_df, how="left")
+    merged["Sentiment"].fillna(0, inplace=True)
+
+    feature_cols = ["Open", "High", "Low", "Close", "Volume",
+                    "MA20", "RSI", "MACD", "Sentiment"]
+    merged = merged[feature_cols].dropna()
+    print(f"[INFO] Feature matrix shape: {merged.shape}")
+    return merged
+
+
+
+#  SEQUENCE PREPARATION
+
+def create_sequences(data: np.ndarray,
+                     seq_len: int,
+                     target_col: int = 3):
+    """Build (X, y) pairs."""
+    X, y = [], []
+    for i in range(seq_len, len(data) - 1):
+        X.append(data[i - seq_len:i, :])
+        movement = 1 if data[i + 1, target_col] > data[i, target_col] else 0
+        y.append(movement)
+    return np.array(X), np.array(y)
+
+
+def prepare_data(feature_df: pd.DataFrame):
+    """Scale features and split into train/test sequences."""
+    scaler = MinMaxScaler()
+    scaled = scaler.fit_transform(feature_df.values)
+
+    X, y = create_sequences(scaled, SEQ_LEN)
+
+    split = int(len(X) * (1 - TEST_RATIO))
+    X_train, X_test = X[:split], X[split:]
+    y_train, y_test = y[:split], y[split:]
+
+    print(f"[INFO] Train: {X_train.shape}, Test: {X_test.shape}")
+    return X_train, X_test, y_train, y_test, scaler, feature_df.index[SEQ_LEN + 1:]
