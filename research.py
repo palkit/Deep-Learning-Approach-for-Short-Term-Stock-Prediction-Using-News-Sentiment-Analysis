@@ -1,5 +1,5 @@
 
-# 0.  IMPORTS
+#   IMPORTS
 
 import os
 import warnings
@@ -42,7 +42,7 @@ LEARNING_RATE = 1e-3
 
 
 
-# 2.  DATA COLLECTION
+#  DATA COLLECTION
 
 def download_stock_data(ticker: str, start: str, end: str) -> pd.DataFrame:
     """Download OHLCV data from Yahoo Finance."""
@@ -84,6 +84,29 @@ def load_or_generate_news(df: pd.DataFrame) -> pd.DataFrame:
 
 
 
+#  TECHNICAL INDICATORS
+
+def compute_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
+    """Compute MA, RSI, and MACD from close prices."""
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+
+    close = df["Close"].astype(float)
+
+    df["MA20"] = close.rolling(window=20).mean()
+
+    delta   = close.diff()
+    gain    = delta.clip(lower=0).rolling(window=14).mean()
+    loss    = (-delta.clip(upper=0)).rolling(window=14).mean()
+    rs      = gain / (loss + 1e-9)
+    df["RSI"] = 100 - (100 / (1 + rs))
+
+    ema12      = close.ewm(span=12, adjust=False).mean()
+    ema26      = close.ewm(span=26, adjust=False).mean()
+    df["MACD"] = ema12 - ema26
+
+    df.dropna(inplace=True)
+    return df
 
 
 
