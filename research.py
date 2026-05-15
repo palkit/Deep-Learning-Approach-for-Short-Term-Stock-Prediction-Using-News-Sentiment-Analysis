@@ -182,3 +182,27 @@ def prepare_data(feature_df: pd.DataFrame):
 
     print(f"[INFO] Train: {X_train.shape}, Test: {X_test.shape}")
     return X_train, X_test, y_train, y_test, scaler, feature_df.index[SEQ_LEN + 1:]
+
+
+    
+    #  EVALUATION
+
+def evaluate_model(model, X_test, y_test, label: str = "Model"):
+    y_pred_prob = model.predict(X_test, verbose=0).flatten()
+    y_pred      = (y_pred_prob >= 0.5).astype(int)
+
+    acc  = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, zero_division=0)
+    rec  = recall_score(y_test, y_pred, zero_division=0)
+    f1   = f1_score(y_test, y_pred, zero_division=0)
+
+    print(f"\n{'='*50}")
+    print(f"  {label}")
+    print(f"{'='*50}")
+    print(f"  Accuracy  : {acc:.4f}  ({acc*100:.1f}%)")
+    print(f"  Precision : {prec:.4f}  ({prec*100:.1f}%)")
+    print(f"  Recall    : {rec:.4f}  ({rec*100:.1f}%)")
+    print(f"  F1-Score  : {f1:.4f}  ({f1*100:.1f}%)")
+    print(classification_report(y_test, y_pred, target_names=["Down", "Up"]))
+
+    return {"Accuracy": acc, "Precision": prec, "Recall": rec, "F1-Score": f1}
