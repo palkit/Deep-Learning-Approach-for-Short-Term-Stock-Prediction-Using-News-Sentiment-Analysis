@@ -207,6 +207,26 @@ def build_lstm_model(input_shape: tuple,
     model.summary()
     return model
 
+
+#  TRAINING
+
+def train_model(model: Sequential,
+                X_train, y_train,
+                X_test,  y_test):
+    callbacks = [
+        EarlyStopping(monitor="val_loss", patience=8, restore_best_weights=True),
+        ReduceLROnPlateau(monitor="val_loss", factor=0.5, patience=4, verbose=0)
+    ]
+    history = model.fit(
+        X_train, y_train,
+        validation_data=(X_test, y_test),
+        epochs=EPOCHS,
+        batch_size=BATCH_SIZE,
+        callbacks=callbacks,
+        verbose=1
+    )
+    return history
+
     
     #  EVALUATION
 
