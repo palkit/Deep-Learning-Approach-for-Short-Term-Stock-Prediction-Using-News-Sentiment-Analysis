@@ -249,3 +249,166 @@ def evaluate_model(model, X_test, y_test, label: str = "Model"):
     print(classification_report(y_test, y_pred, target_names=["Down", "Up"]))
 
     return {"Accuracy": acc, "Precision": prec, "Recall": rec, "F1-Score": f1}
+
+    #  VISUALISATION
+
+def plot_results(history_hybrid, history_baseline,
+                 metrics_hybrid, metrics_baseline,
+                 feature_df, X_test, model_hybrid,
+                 dates_all):
+    """Reproduce Figures 1, 2, and 3 from the paper."""
+    fig = plt.figure(figsize=(18, 14))
+    fig.suptitle(
+        "Hybrid LSTM + Sentiment vs Baseline LSTM\nStock Price Prediction",
+        fontsize=16, fontweight="bold", y=0.98
+    )
+    gs = gridspec.GridSpec(2, 2, figure=fig, hspace=0.45, wspace=0.35)
+
+    ax1 = fig.add_subplot(gs[0, :])
+
+    close_vals   = feature_df["Close"].values
+    n_test       = len(X_test)
+    actual_test  = close_vals[-(n_test + 1):]
+    pred_prob    = model_hybrid.predict(X_test, verbose=0).flatten()
+    pred_labels  = (pred_prob >= 0.5).astype(int)
+
+    predicted_prices = [actual_test[0]]
+    avg_move = np.std(np.diff(actual_test)) * 0.5
+    for lbl in pred_labels:
+        step = avg_move if lbl == 1 else -avg_move
+        predicted_prices.append(predicted_prices[-1] + step)
+    predicted_prices = np.array(predicted_prices)
+
+    x_axis = np.arange(len(actual_test))
+    ax1.plot(x_axis, actual_test, color="#1f77b4", linewidth=2,
+             label="Actual Price", marker="o", markersize=3)
+    ax1.plot(x_axis, predicted_prices, color="#d62728", linewidth=2,
+             label="Predicted Price", marker="s", markersize=3, linestyle="--")
+    ax1.set_title("Fig 1. Actual vs Predicted Stock Prices (Hybrid Model)",
+                  fontsize=12, fontweight="bold")
+    ax1.set_xlabel("Time (Days)")
+    ax1.set_ylabel("Stock Price ($)")
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    ax2 = fig.add_subplot(gs[1, 0])
+    bars = ax2.bar(
+        ["Without Sentiment\n(Baseline LSTM)", "With Sentiment\n(Hybrid Model)"],
+        [metrics_baseline["Accuracy"] * 100, metrics_hybrid["Accuracy"] * 100],
+        color=["#4878cf", "#6acc65"], width=0.5, edgecolor="black"
+    )
+    for bar, val in zip(bars, [metrics_baseline["Accuracy"], metrics_hybrid["Accuracy"]]):
+        ax2.text(bar.get_x() + bar.get_width() / 2,
+                 bar.get_height() + 0.4,
+                 f"{val*100:.0f}%", ha="center", fontweight="bold")
+    ax2.set_ylim(75, 100)
+    ax2.set_ylabel("Accuracy (%)")
+    ax2.set_title("Fig 2. Accuracy: Baseline vs Hybrid", fontsize=11, fontweight="bold")
+    ax2.grid(True, axis="y", alpha=0.3)
+
+    ax3 = fig.add_subplot(gs[1, 1])
+    metric_names = ["Accuracy", "Precision", "Recall", "F1-Score"]
+    baseline_vals = [metrics_baseline[m] * 100 for m in metric_names]
+    hybrid_vals   = [metrics_hybrid[m]   * 100 for m in metric_names]
+
+    x     = np.arange(len(metric_names))
+    width = 0.35
+    bars1 = ax3.bar(x - width / 2, baseline_vals, width,
+                    label="LSTM (Baseline)", color="#4878cf", edgecolor="black")
+    bars2 = ax3.bar(x + width / 2, hybrid_vals, width,
+                    label="Hybrid Model", color="#6acc65", edgecolor="black")
+
+    for bar in list(bars1) + list(bars2):
+        ax3.text(bar.get_x() + bar.get_width() / 2,
+                 bar.get_height() + 0.3,
+                 f"{bar.get_height():.0f}%", ha="center", fontsize=8)
+
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(metric_names)
+    ax3.set_ylim(70, 100)
+    ax3.set_ylabel("Score (%)")
+    ax3.set_title("Fig 3. Evaluation Metrics: LSTM vs Hybrid", fontsize=11, fontweight="bold")
+    ax3.legend()
+    ax3.grid(True, axis="y", alpha=0.3)
+
+    out_path = "results.png"
+    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    print(f"\n[INFO] Plot saved → {out_path}")
+    plt.show()
+
+
+def plot_training_history(history_hybrid, history_baseline):
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig.suptitle("Training History", fontsize=14, fontweight="bold")
+
+    for ax, hist, title in zip(
+        axes,
+        [history_baseline, history_hybrid],
+        ["Baseline LSTM", "Hybrid LSTM + Sentiment"]
+    ):
+        ax.plot(hist.history["loss"], label="Train Loss")
+        ax.plot(hist.history["val_loss"], label="Val Loss", linestyle="--")
+        ax.set_title(title)
+        ax.set_xlabel("Epoch")
+        ax.set_ylabel("Loss")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig("training_history.png", dpi=150, bbox_inches="tight")
+    print("[INFO] Training history saved → training_history.png")
+    plt.show()
+
+
+    # MAIN
+
+def main():
+    stock_df = download_stock_data(TICKER, START_DATE, END_DATE)
+    news_df  = load_or_generate_news(stock_df)
+
+    stock_df = compute_technical_indicators(stock_df)
+    sentiment_df = compute_daily_sentiment(news_df)
+    feature_df = build_feature_matrix(stock_df, sentiment_df)
+
+    X_train_h, X_test_h, y_train, y_test, scaler, date_idx = prepare_data(feature_df)
+
+    baseline_cols = ["Open", "High", "Low", "Close", "Volume",
+                     "MA20", "RSI", "MACD"]
+    baseline_df = feature_df[baseline_cols]
+    X_train_b, X_test_b, _, _, _, _ = prepare_data(baseline_df)
+
+    print("\n[INFO] Training HYBRID model …")
+    model_hybrid = build_lstm_model(input_shape=(SEQ_LEN, X_train_h.shape[2]))
+    history_hybrid = train_model(model_hybrid, X_train_h, y_train,
+                                 X_test_h,  y_test)
+
+    print("\n[INFO] Training BASELINE model …")
+    model_baseline = build_lstm_model(input_shape=(SEQ_LEN, X_train_b.shape[2]))
+    history_baseline = train_model(model_baseline, X_train_b, y_train,
+                                   X_test_b,  y_test)
+
+    metrics_baseline = evaluate_model(model_baseline, X_test_b, y_test,
+                                      label="Baseline LSTM (no sentiment)")
+    metrics_hybrid   = evaluate_model(model_hybrid,   X_test_h, y_test,
+                                      label="Hybrid LSTM + Sentiment")
+
+    model_hybrid.save("hybrid_lstm_model.h5")
+    model_baseline.save("baseline_lstm_model.h5")
+    print("\n[INFO] Models saved.")
+
+    plot_results(history_hybrid, history_baseline,
+                 metrics_hybrid, metrics_baseline,
+                 feature_df, X_test_h, model_hybrid, date_idx)
+    plot_training_history(history_hybrid, history_baseline)
+
+    print("\n" + "="*55)
+    print(f"  {'Metric':<15} {'Baseline LSTM':>15} {'Hybrid Model':>15}")
+    print("="*55)
+    for m in ["Accuracy", "Precision", "Recall", "F1-Score"]:
+        print(f"  {m:<15} {metrics_baseline[m]*100:>14.1f}%"
+              f" {metrics_hybrid[m]*100:>14.1f}%")
+    print("="*55)
+
+
+if _name_ == "_main_":
+    main()
