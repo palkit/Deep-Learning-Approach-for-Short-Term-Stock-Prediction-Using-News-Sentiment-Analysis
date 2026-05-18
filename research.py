@@ -29,7 +29,7 @@ np.random.seed(42)
 
 # 1.  CONFIGURATION
 
-TICKER      = "AAPL"
+TICKER = input("Enter Stock Ticker: ").upper()
 START_DATE  = "2020-01-01"
 END_DATE    = "2023-12-31"
 SEQ_LEN     = 30
@@ -273,7 +273,7 @@ def plot_results(history_hybrid, history_baseline,
     pred_labels  = (pred_prob >= 0.5).astype(int)
 
     predicted_prices = [actual_test[0]]
-    avg_move = np.std(np.diff(actual_test)) * 0.5
+    avg_move = np.mean(np.abs(np.diff(actual_test))) * 0.3
     for lbl in pred_labels:
         step = avg_move if lbl == 1 else -avg_move
         predicted_prices.append(predicted_prices[-1] + step)
@@ -293,15 +293,17 @@ def plot_results(history_hybrid, history_baseline,
 
     ax2 = fig.add_subplot(gs[1, 0])
     bars = ax2.bar(
-        ["Without Sentiment\n(Baseline LSTM)", "With Sentiment\n(Hybrid Model)"],
-        [metrics_baseline["Accuracy"] * 100, metrics_hybrid["Accuracy"] * 100],
-        color=["#4878cf", "#6acc65"], width=0.5, edgecolor="black"
+    ["Without Sentiment\n(Baseline LSTM)", "With Sentiment\n(Hybrid Model)"],
+    [metrics_baseline["Accuracy"] * 100, metrics_hybrid["Accuracy"] * 100],
+    color=["#4878cf", "#6acc65"], width=0.5, edgecolor="black"
     )
+
     for bar, val in zip(bars, [metrics_baseline["Accuracy"], metrics_hybrid["Accuracy"]]):
         ax2.text(bar.get_x() + bar.get_width() / 2,
-                 bar.get_height() + 0.4,
-                 f"{val*100:.0f}%", ha="center", fontweight="bold")
-    ax2.set_ylim(75, 100)
+                bar.get_height() + 0.4,
+                f"{val*100:.0f}%", ha="center", fontweight="bold")
+
+    ax2.set_ylim(0, 100)
     ax2.set_ylabel("Accuracy (%)")
     ax2.set_title("Fig 2. Accuracy: Baseline vs Hybrid", fontsize=11, fontweight="bold")
     ax2.grid(True, axis="y", alpha=0.3)
@@ -325,7 +327,7 @@ def plot_results(history_hybrid, history_baseline,
 
     ax3.set_xticks(x)
     ax3.set_xticklabels(metric_names)
-    ax3.set_ylim(70, 100)
+    ax3.set_ylim(0, 100)
     ax3.set_ylabel("Score (%)")
     ax3.set_title("Fig 3. Evaluation Metrics: LSTM vs Hybrid", fontsize=11, fontweight="bold")
     ax3.legend()
@@ -410,5 +412,5 @@ def main():
     print("="*55)
 
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
